@@ -1,0 +1,291 @@
+;-------------------------------------------------
+;Project Title:
+;FIle encryption and Decryption
+
+;Made By
+;       :Syed Saud Ali
+;Project Description:This project consists of two parts.
+;			1st part Consists of filing to show file encryption and decryption
+;			2nd part Consists of creation of heap data structure
+;
+;-------------------------------------------------
+
+
+
+
+Include irvine32.inc
+
+
+.data
+	string2 Byte "1.Encrypt/Decrypt your file ",0	
+	string4 Byte "2.Exit",0
+	string5 Byte "Enter your choice:",0
+	string8 Byte "Enter your filename:",0
+	filename BYTE 100 dup(0)
+	jj dword 0
+
+
+.code
+main proc
+
+	looop:
+	call waitmsg
+	call clrscr
+		call crlf
+		mov edx,OFFSET string2
+		call writestring
+		call crlf
+		mov edx,OFFSET string4
+		call writestring
+		call crlf
+		mov edx,OFFSET string5
+		call writestring
+		call readdec
+
+		cmp eax,1
+		jnz L2
+		call Encrypt
+		jmp looop
+		L2:
+		cmp eax,2
+		jz endd
+
+		jmp looop
+
+	endd:
+		exit
+main endp
+
+
+Encrypt PROC
+.data
+prompt1 byte "1.To encrypt your file",0
+prompt2 byte "2.To decrypt your file",0
+prompt3 byte "Press 1 If you have a custom key to encrypt your file else any key if you want to randomly select a key: ",0
+prompt4 byte "Enter key it must be between 0-255:",0
+errorarr byte "Invalid filename",0
+filehandle dword ?
+key byte ?
+.code
+	mov edx,OFFSET prompt1
+	call writestring
+	call crlf
+	mov edx,OFFSET prompt2
+	call writestring
+	call crlf
+	mov edx,OFFSET string5
+	call writestring
+	call readdec
+
+
+
+	cmp eax,1
+	jnz L2
+	call crlf
+	mov edx,OFFSET string8
+	call writestring
+	mov edx,OFFSET filename
+	mov ecx,SIZEOF filename
+	call readstring
+	call openinputfile
+	cmp eax,INVALID_HANDLE_VALUE
+	jnz L4	
+	call crlf
+	mov edx,OFFSET errorarr
+	call writestring
+	jmp L3
+	L4:
+	mov filehandle,eax
+	call crlf
+	mov edx,OFFSET prompt3
+	call writestring
+	call readint
+	cmp al,1
+	jnz L5
+	call crlf
+	mov edx,OFFSET prompt4
+	call writestring
+	mov eax,0
+	call readint
+	mov key,al
+	push eax
+	mov eax,filehandle
+	call closefile
+	call functionencrypt
+	pop eax
+	jmp L3
+	L5:
+	mov eax,0
+	mov al,255
+	call randomize
+	call randomrange
+	mov key,al
+	push eax
+	mov eax,filehandle
+	call closefile
+	call functionencrypt
+	pop eax
+	jmp L3
+	L2:
+	cmp eax,2
+	jnz L3
+	mov edx,OFFSET string8
+	call writestring
+	mov edx,OFFSET filename
+	mov ecx,SIZEOF filename
+	call readstring
+	call functiondecrypt
+
+
+
+
+	L3:
+	mov eax,1000
+	call delay
+	RET
+	Encrypt ENDP
+
+
+functionencrypt PROC
+.data
+	BUFFER_SIZE=4000
+	bufferr BYTE BUFFER_SIZE DUP(?)
+	bytesRead DWORD ?
+	reads dword ?
+	temphandle dword ?
+	keyyy dword ?
+
+
+.code
+	enter 0,0
+	mov edx,offset filename
+	call openinputfile
+	mov temphandle,eax
+	mov edx,OFFSET bufferr
+	inc edx
+	mov ecx,BUFFER_SIZE
+	call readfromfile
+	mov reads,eax
+
+
+	mov eax,[ebp+8]
+	mov [bufferr+0],al
+	mov eax,temphandle
+	call closefile
+	call crlf
+	mov ecx,reads
+	mov eax,1
+	mov bl,[bufferr+0]
+	L1:
+		xor [bufferr+eax],bl
+		inc eax
+	loop L1
+	mov edx,offset filename
+	call createoutputfile
+	mov edx,offset bufferr
+	mov ecx,reads
+	call writetofile
+leave
+Ret
+functionencrypt ENDP
+
+
+
+
+
+
+functiondecrypt PROC
+.data
+	BUFFER_SIZE=4000
+	buffer1 BYTE BUFFER_SIZE DUP(?)
+	prompt5 byte "Press 1 I your file was encrypted by this program else press any other key: ",0
+	prompt6 byte "Enter your decryption key must be between 0-255: ",0
+	bytes_read_file dword ?
+	filekey byte ?
+.code
+	enter 0,0
+
+	mov edx,offset prompt5
+	call writestring
+	call readint
+	cmp eax,1
+	jnz L1
+
+
+		mov edx,offset filename
+		call openinputfile
+		cmp eax,INVALID_HANDLE_VALUE
+		jz endd
+		mov edx,offset buffer1
+		mov ecx,BUFFER_SIZE
+		mov filehandle,eax
+		call readfromfile
+		dec eax
+
+
+		mov bytes_read_file,eax
+		mov eax,filehandle
+		call closefile
+		mov ecx,bytes_read_file
+		mov bl,[buffer1+0]
+		mov eax,1
+		Loop_encryption:
+
+			xor [buffer1+eax],bl
+			inc eax
+		Loop Loop_encryption
+		mov edx,offset filename
+		call createoutputfile
+		mov filehandle,eax
+		mov edx,offset buffer1
+		inc edx
+		mov ecx,bytes_read_file
+		call writetofile
+		mov eax,filehandle 
+		call closefile
+		jmp endd_func
+	L1:
+		mov edx,offset filename
+		call openinputfile
+		cmp eax,INVALID_HANDLE_VALUE
+		jz endd
+		mov edx,offset buffer1
+		mov ecx,BUFFER_SIZE
+		mov filehandle,eax
+		call readfromfile
+		mov bytes_read_file,eax
+		mov eax,filehandle
+		call closefile
+		
+		mov edx,offset prompt6
+		call writestring
+		call readint
+		mov bl,al
+		mov ecx,bytes_read_file
+		mov eax,1
+		Loop_encryption1:
+			xor [buffer1+eax],bl
+			inc eax
+
+		Loop Loop_encryption1
+		mov edx,offset filename
+		call createoutputfile
+		mov filehandle,eax
+		mov edx,offset buffer1
+		inc edx
+		mov ecx,bytes_read_file
+		call writetofile
+		mov eax,filehandle 
+		call closefile
+
+
+endd_func:
+endd:
+leave
+Ret
+functiondecrypt ENDP
+
+
+
+
+end main
